@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "es2020",
+        "module": "commonjs",
+        "strict": true,
+        "outDir": "./build",
+        "rootDir": ".", // 確保根目錄為 bot/，保留文件結構
+        "esModuleInterop": true,
+        "skipLibCheck": true, // 跳過第三方庫的類型檢查，減少潛在衝突
+        "resolveJsonModule": true,
+        "types": ["node"],
+        "moduleResolution": "node", // 明確指定模塊解析策略
+        "sourceMap": true // 生成 source map，便於調試
+    },
+    "include": [
+        "commands/**/*", // 包含 commands 文件夾中的所有 .ts 文件
+        "events/**/*",   // 包含 events 文件夾中的所有 .ts 文件
+        "deploy-commands.ts" // 明確包含根目錄的 deploy-commands.ts
+    ],
+    "exclude": [
+        "node_modules",
+        "build" // 排除編譯輸出目錄
+    ]
+}
