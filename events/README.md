@@ -1,0 +1,1 @@
+這個文件夾是存儲 bot 事件 包含bot啓動以及interaction創建的部分
