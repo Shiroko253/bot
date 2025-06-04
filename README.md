@@ -1,105 +1,108 @@
 # 👻 Welcome to `Yuyuko_bot-y2`
 
 ```py
-print(f"Hello, user! Please run `npm install typescript ts-node @types/node --save-dev` to install the required packages. We're about to begin building the second-generation Yuyuko bot!")
+print(f"Hello, user! Please run `npm install typescript ts-node @types/node --save-dev` to install the required packages. Get ready to build Yuyuko bot 2nd generation!")
 ```
 
-## 📦 Required Libraries & Setup Instructions
+## 📦 Required Packages & Setup Instructions
 
 ### 💻 Programming Languages
-
-* TypeScript
-* JavaScript (optional for extensions)
-
-### 📚 Core Dependencies
-
-* [`discord.js`](https://discord.js.org)
-* `dotenv`
-* `typescript`
-* `ts-node`
-* `@types/node`
+- Main entry: **JavaScript (`index.js`)**
+- Commands & Events modules: **TypeScript or JavaScript** (folder: `commands/` and `events/`)
 
 ---
 
-### ⚙️ Step 1: Initialize the Project
+### 📚 Installation Steps
 
-Create a new project folder and initialize it:
+#### 1. Initialize Project
 
 ```bash
 npm init -y
 ```
 
----
+#### 2. Install Dependencies
 
-### 📥 Step 2: Install Required Packages
-
-Install development tools:
-
+**Development dependencies:**
 ```bash
 npm install typescript ts-node @types/node --save-dev
 ```
 
-Install runtime dependencies:
-
+**Runtime dependencies:**
 ```bash
 npm install discord.js dotenv
 ```
 
----
-
-### 🛠 Step 3: Create `tsconfig.json`
-
-You can generate the config with:
+#### 3. Create TypeScript Configuration
 
 ```bash
 npx tsc --init
 ```
-
-Or manually create it with the following recommended settings:
+**Recommended `tsconfig.json` (only for `commands/` and `events/`, output to `build/`):**
 
 ```json
 {
-    "compilerOptions": {
-        "target": "es2020",
-        "module": "commonjs",
-        "strict": true,
-        "outDir": "./build",
-        "rootDir": ".",
-        "esModuleInterop": true,
-        "skipLibCheck": true,
-        "resolveJsonModule": true,
-        "types": ["node"],
-        "moduleResolution": "node"
-        "sourceMap": true
-    },
-    "include": [
-        "commands/**/*",
-        "events/**/*",
-        "deploy-commands.ts"
-    ],
-    "exclude": [
-        "node_modules",
-        "build"
-    ]
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./build",
+    "skipLibCheck": true
+  },
+  "include": ["commands/**/*", "events/**/*"]
 }
 ```
 
 ---
 
-### 🚀 Ready to Start?
+## 📁 Project Structure (Sample)
 
-Create a `src` folder and begin writing your bot using TypeScript!
-Example entry file: `src/index.ts`
-
-To run your bot in development mode:
-
-```bash
-npx ts-node src/index.ts
 ```
+/project-root
+├── index.js        # Main entry (JavaScript, executed directly)
+├── commands/       # Command modules (TypeScript/JavaScript)
+├── events/         # Event modules (TypeScript/JavaScript)
+├── build/          # Compiled JS output from TypeScript (auto-generated)
+├── tsconfig.json   # TypeScript config
+└── .env            # Environment variables
+```
+
+- **index.js**: The main entry file, which loads JS modules from `build/commands/` and `build/events/`.
+- **commands/**, **events/**: Write your features in TS or JS, but TS is recommended. Compile TS to `build/`.
+- **build/**: Stores all compiled JS files. Do not edit directly.
+
+---
+
+## 🚀 Development & Start-up Workflow
+
+1. **Development:**  
+   Write your modules in `commands/` and `events/` using TypeScript.
+
+2. **Compile TypeScript:**
+   ```bash
+   npx tsc
+   ```
+   - This compiles TS files into JS under `build/commands/` and `build/events/`.
+
+3. **Start the bot:**
+   ```bash
+   node index.js
+   ```
+   - Make sure `index.js` only loads JS files from `build/commands/` and `build/events/`, not the original TS files!
+
+---
+
+## 🔒 Notes
+
+- **index.js** can only load JS files. Do NOT require/import TS source files directly.
+- Place secrets (like your Discord Token) in `.env`.
+- `commands/` and `events/` are only for source code; run the bot using the compiled JS in `build/`.
+- Do not place command or event modules in the root directory—keep them in their designated folders.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **GNU General Public License v3.0**.
-See the [LICENSE](./LICENSE) file for more details.
+This project is licensed under the **GNU General Public License v3.0**.  
+See [LICENSE](./LICENSE) for details.
