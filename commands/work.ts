@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -95,59 +95,130 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
-  if (!guildId) {
-    return interaction.reply({ content: '只能在伺服器中使用本指令。', flags: MessageFlags.Ephemeral });
-  }
+  try {
+    if (!guildId) {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xff6961)
+            .setDescription('只能在伺服器中使用本指令。')
+        ],
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
 
-  // 職業與壓力
-  const jobData = getUserJobData(guildId, userId);
-  if (!jobData) {
-    return interaction.reply({ content: '你尚未選擇職業，請先使用 /choose_jobs 選擇職業！', flags: MessageFlags.Ephemeral });
-  }
+    // 職業與壓力
+    const jobData = getUserJobData(guildId, userId);
+    if (!jobData) {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xff6961)
+            .setDescription('你尚未選擇職業，請先使用 /choose_jobs 選擇職業！')
+        ],
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
 
-  // 檢查冷卻
-  const cooldown = getCooldown(guildId, userId);
-  const now = Date.now();
-  const cooldownTime = 5 * 60 * 1000; // 5分鐘
-  if (cooldown && now - cooldown < cooldownTime) {
-    const left = Math.ceil((cooldownTime - (now - cooldown)) / 1000);
-    const min = Math.floor(left / 60);
-    const sec = left % 60;
-    return interaction.reply({
-      content: `你還需要等待 ${min > 0 ? `${min}分` : ''}${sec}秒 才能再次工作。`,
-      flags: MessageFlags.Ephemeral
+    // 檢查冷卻
+    const cooldown = getCooldown(guildId, userId);
+    const now = Date.now();
+    const cooldownTime = 5 * 60 * 1000; // 5分鐘
+    if (cooldown && now - cooldown < cooldownTime) {
+      const left = Math.ceil((cooldownTime - (now - cooldown)) / 1000);
+      const min = Math.floor(left / 60);
+      const sec = left % 60;
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xffc300)
+            .setDescription(`你還需要等待 ${min > 0 ? `${min}分` : ''}${sec}秒 才能再次工作。`)
+        ],
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    // 讀取職業工資範圍
+    if (!fs.existsSync(jobsPath)) {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xff6961)
+            .setDescription('找不到職業資料，請聯絡管理員。')
+        ],
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+    const jobsData: Record<string, { min: number, max: number }> = JSON.parse(fs.readFileSync(jobsPath, 'utf8'));
+    const curJob = jobData.job;
+    const jobInfo = jobsData[curJob];
+    if (!jobInfo) {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xff6961)
+            .setDescription(`你的職業資料異常（職業：${curJob}），請重新選擇職業。`)
+        ],
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    // 隨機工資
+    const pay = Math.floor(Math.random() * (jobInfo.max - jobInfo.min + 1)) + jobInfo.min;
+
+    // 經濟 balance
+    const userEco = getUserEconomy(guildId, userId);
+    userEco.balance += pay;
+    setUserEconomy(guildId, userId, userEco);
+
+    // 壓力
+    jobData.stress = (jobData.stress ?? 0) + 10;
+    setUserJobData(guildId, userId, jobData);
+
+    // 設定冷卻
+    setCooldown(guildId, userId, now);
+
+    // 回覆（公開）
+    const embed = new EmbedBuilder()
+      .setTitle(`👷 上班成功`)
+      .setColor(0x7ed957)
+      .setDescription(
+        `你認真工作了一番，獲得了 **${pay} 金幣** 💰\n` +
+        `目前餘額：**${userEco.balance}**\n` +
+        `壓力值 +10（目前壓力：${jobData.stress}）`
+      )
+      .setFooter({ text: `職業：${curJob}` });
+
+    await interaction.reply({
+      embeds: [embed]
+      // 不加 flags，訊息將公開
     });
+  } catch (err) {
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xff6961)
+              .setDescription('執行命令時發生錯誤，請稍後重試！')
+          ]
+        });
+      } else {
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xff6961)
+              .setDescription('執行命令時發生錯誤，請稍後重試！')
+          ],
+          flags: MessageFlags.Ephemeral
+        });
+      }
+    } catch {}
+    console.error('[work] 指令處理例外:', err);
   }
-
-  // 讀取職業工資範圍
-  if (!fs.existsSync(jobsPath)) {
-    return interaction.reply({ content: '找不到職業資料，請聯絡管理員。', flags: MessageFlags.Ephemeral });
-  }
-  const jobsData: Record<string, { min: number, max: number }> = JSON.parse(fs.readFileSync(jobsPath, 'utf8'));
-  const curJob = jobData.job;
-  const jobInfo = jobsData[curJob];
-  if (!jobInfo) {
-    return interaction.reply({ content: `你的職業資料異常（職業：${curJob}），請重新選擇職業。`, flags: MessageFlags.Ephemeral });
-  }
-
-  // 隨機工資
-  const pay = Math.floor(Math.random() * (jobInfo.max - jobInfo.min + 1)) + jobInfo.min;
-
-  // 經濟 balance
-  const userEco = getUserEconomy(guildId, userId);
-  userEco.balance += pay;
-  setUserEconomy(guildId, userId, userEco);
-
-  // 壓力
-  jobData.stress = (jobData.stress ?? 0) + 10;
-  setUserJobData(guildId, userId, jobData);
-
-  // 設定冷卻
-  setCooldown(guildId, userId, now);
-
-  // 回覆
-  await interaction.reply({
-    content: `你認真工作了一番，獲得了 ${pay} 金幣 💰\n目前餘額：${userEco.balance}\n壓力值 +10（目前壓力：${jobData.stress}）`,
-    flags: MessageFlags.Ephemeral
-  });
 }
