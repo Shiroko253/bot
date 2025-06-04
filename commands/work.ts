@@ -40,22 +40,36 @@ function setUserEconomy(guildId: string, userId: string, data: { balance: number
 }
 
 // 讀寫 user-jobs.json
-function getAllUserJobs(): Record<string, Record<string, { job: string, stress: number }>> {
+function getAllUserJobs(): Record<string, Record<string, { job: string, stress: number } | string>> {
   if (!fs.existsSync(userJobsPath)) {
     fs.writeFileSync(userJobsPath, JSON.stringify({}, null, 2));
     return {};
   }
   return JSON.parse(fs.readFileSync(userJobsPath, 'utf8'));
 }
+function setAllUserJobs(data: Record<string, Record<string, { job: string, stress: number }>>) {
+  fs.writeFileSync(userJobsPath, JSON.stringify(data, null, 2));
+}
 function getUserJobData(guildId: string, userId: string): { job: string, stress: number } | null {
   const allJobs = getAllUserJobs();
-  return allJobs[guildId]?.[userId] ?? null;
+  let jobEntry = allJobs[guildId]?.[userId];
+
+  // 如果是舊格式（字串），自動修正為物件格式
+  if (typeof jobEntry === "string") {
+    jobEntry = { job: jobEntry, stress: 0 };
+    if (!allJobs[guildId]) allJobs[guildId] = {};
+    allJobs[guildId][userId] = jobEntry;
+    setAllUserJobs(allJobs as any);
+  }
+  if (!jobEntry || typeof jobEntry.job !== "string") return null;
+  if (typeof jobEntry.stress !== "number") jobEntry.stress = 0;
+  return jobEntry as { job: string, stress: number };
 }
 function setUserJobData(guildId: string, userId: string, jobData: { job: string, stress: number }) {
   const allJobs = getAllUserJobs();
   if (!allJobs[guildId]) allJobs[guildId] = {};
   allJobs[guildId][userId] = jobData;
-  fs.writeFileSync(userJobsPath, JSON.stringify(allJobs, null, 2));
+  setAllUserJobs(allJobs as any);
 }
 
 // cooldown
@@ -113,7 +127,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const curJob = jobData.job;
   const jobInfo = jobsData[curJob];
   if (!jobInfo) {
-    return interaction.reply({ content: '你的職業資料異常，請重新選擇職業。', flags: MessageFlags.Ephemeral });
+    return interaction.reply({ content: `你的職業資料異常（職業：${curJob}），請重新選擇職業。`, flags: MessageFlags.Ephemeral });
   }
 
   // 隨機工資
