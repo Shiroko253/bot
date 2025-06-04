@@ -33,43 +33,39 @@ function setUserEconomy(guildId: string, userId: string, data: any) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+// 可選的職業列表
+const jobs = [
+  { name: '冒險者', value: 'adventurer' },
+  { name: '農夫', value: 'farmer' },
+  { name: '礦工', value: 'miner' },
+  { name: '商人', value: 'merchant' },
+];
+
 export const data = new SlashCommandBuilder()
-  .setName('pay')
-  .setDescription('轉帳金幣給其他用戶')
-  .addUserOption(option =>
-    option.setName('target').setDescription('收款對象').setRequired(true)
-  )
-  .addIntegerOption(option =>
-    option.setName('amount').setDescription('轉帳金額').setRequired(true)
+  .setName('choose_jobs')
+  .setDescription('選擇你的職業')
+  .addStringOption(option =>
+    option
+      .setName('job')
+      .setDescription('請選擇職業')
+      .setRequired(true)
+      .addChoices(...jobs.map(j => ({ name: j.name, value: j.value })))
   );
 
 /**
- * /pay 指令主體，讓用戶給另一用戶轉帳金幣
+ * /choose_jobs 指令主體，讓用戶選擇職業並存入經濟檔案
  */
 export async function execute(interaction: ChatInputCommandInteraction) {
   const guildId = interaction.guildId;
-  const fromId = interaction.user.id;
-  const toUser = interaction.options.getUser('target', true);
-  const toId = toUser.id;
-  const amount = interaction.options.getInteger('amount', true);
+  const userId = interaction.user.id;
+  const job = interaction.options.getString('job', true);
 
   if (!guildId) return interaction.reply({ content: '只能在伺服器中執行本指令。', ephemeral: true });
-  if (amount <= 0) return interaction.reply({ content: '轉帳金額必須大於 0。', ephemeral: true });
-  if (fromId === toId) return interaction.reply({ content: '不能給自己轉帳！', ephemeral: true });
 
-  const fromEco = getUserEconomy(guildId, fromId);
-  const toEco = getUserEconomy(guildId, toId);
+  const eco = getUserEconomy(guildId, userId);
+  eco.job = job;
+  setUserEconomy(guildId, userId, eco);
 
-  if (fromEco.balance < amount) {
-    return interaction.reply({ content: '你的金幣餘額不足。', ephemeral: true });
-  }
-
-  fromEco.balance -= amount;
-  toEco.balance += amount;
-  setUserEconomy(guildId, fromId, fromEco);
-  setUserEconomy(guildId, toId, toEco);
-
-  await interaction.reply({
-    content: `轉帳成功！你已給 <@${toId}> 轉帳 ${amount} 金幣。\n你目前餘額：${fromEco.balance} 金幣`
-  });
+  const jobName = jobs.find(j => j.value === job)?.name ?? job;
+  await interaction.reply({ content: `你已選擇職業：${jobName}` });
 }
