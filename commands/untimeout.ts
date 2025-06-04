@@ -1,37 +1,98 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 
 export const data = new SlashCommandBuilder()
-  .setName('timeout')
-  .setDescription('禁言用戶（僅限管理員）')
+  .setName('untimeout')
+  .setDescription('解除禁言（需要管理員權限）')
   .addUserOption(option =>
-    option.setName('target').setDescription('要禁言的用戶').setRequired(true)
+    option.setName('target').setDescription('要解除禁言的用戶').setRequired(true)
   )
-  .addIntegerOption(option =>
-    option.setName('minutes').setDescription('禁言分鐘數（最長28天）').setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName('reason').setDescription('禁言原因').setRequired(false)
-  );
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({ content: '你不是管理員，不能使用本指令。', ephemeral: true });
+  // 權限檢查
+  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ModerateMembers)) {
+    return interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xff6961)
+          .setTitle('權限不足')
+          .setDescription('你沒有權限解除禁言。')
+      ],
+      ephemeral: true
+    });
   }
-  const target = interaction.options.getUser('target', true);
-  const minutes = interaction.options.getInteger('minutes', true);
-  const reason = interaction.options.getString('reason') ?? '無';
 
-  if (minutes < 1 || minutes > 40320) { // 28天=40320分鐘
-    return interaction.reply({ content: '禁言時間必須在 1 ~ 40320 分鐘之間。', ephemeral: true });
-  }
+  const target = interaction.options.getUser('target', true);
   const member = await interaction.guild?.members.fetch(target.id).catch(() => null);
 
+  // 找不到用戶
   if (!member) {
-    return interaction.reply({ content: '找不到這位用戶。', ephemeral: true });
+    return interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffc300)
+          .setTitle('找不到用戶')
+          .setDescription(`找不到這位用戶（ID: ${target.id}）。`)
+      ],
+      ephemeral: true
+    });
   }
+
+  // 檢查是否可操作
   if (!member.moderatable) {
-    return interaction.reply({ content: '我無法禁言這位用戶（可能管理權限層級不足）。', ephemeral: true });
+    return interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffc300)
+          .setTitle('無法解除禁言')
+          .setDescription('我無法解除禁言（可能因為我的權限層級不足或對方是管理員）。')
+      ],
+      ephemeral: true
+    });
   }
-  await member.timeout(minutes * 60 * 1000, reason);
-  return interaction.reply({ content: `已禁言 <@${target.id}> ${minutes} 分鐘，原因：${reason}` });
+
+  // 檢查是否真的被禁言過
+  if (
+    !member.communicationDisabledUntil ||
+    !member.communicationDisabledUntilTimestamp ||
+    member.communicationDisabledUntilTimestamp < Date.now()
+  ) {
+    return interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffc300)
+          .setTitle('未處於禁言狀態')
+          .setDescription(`該用戶目前未被禁言。`)
+      ],
+      ephemeral: true
+    });
+  }
+
+  // 解除禁言
+  try {
+    await member.timeout(null);
+
+    const now = new Date();
+    const embed = new EmbedBuilder()
+      .setTitle('🔊 用戶已解除禁言')
+      .setColor(0x7ed957)
+      .addFields(
+        { name: '用戶', value: `${target.tag} (<@${target.id}>)`, inline: false },
+        { name: '用戶ID', value: target.id, inline: true },
+        { name: '解除時間', value: now.toLocaleString('zh-TW', { hour12: false, timeZone: 'Asia/Taipei' }), inline: true }
+      )
+      .setFooter({ text: `操作管理員: ${interaction.user.tag}` });
+
+    return interaction.reply({ embeds: [embed] }); // 公開顯示
+  } catch (err) {
+    return interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xff6961)
+          .setTitle('解除禁言失敗')
+          .setDescription('執行解除禁言時發生錯誤，請稍後重試。')
+      ],
+      ephemeral: true
+    });
+  }
 }
