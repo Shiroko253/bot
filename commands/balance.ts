@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -6,22 +6,43 @@ import path from 'path';
 const economyDir = path.join(__dirname, '..', 'economys');
 if (!fs.existsSync(economyDir)) fs.mkdirSync(economyDir);
 
-// === v2修改區塊開始 ===
-function getEconomyFileName(guildId: string, userId: string) {
-  // 用 guildId_userId.json 作為檔名，防止跨群組用戶資料混亂
-  return path.join(economyDir, `${guildId}_${userId}.json`);
+/**
+ * 取得本群組經濟檔案路徑
+ */
+function getEconomyFileName(guildId: string) {
+  return path.join(economyDir, `${guildId}.json`);
 }
-// === v2修改區塊結束 ===
 
-function getUserEconomy(guildId: string, userId: string) {
-  // === v2修改區塊開始 ===
-  const filePath = getEconomyFileName(guildId, userId);
-  // === v2修改區塊結束 ===
+/**
+ * 讀取本群組所有用戶經濟資料
+ */
+function getGuildEconomy(guildId: string): Record<string, { balance: number }> {
+  const filePath = getEconomyFileName(guildId);
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({ balance: 0 }, null, 2));
-    return { balance: 0 };
+    fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
+    return {};
   }
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+/**
+ * 取得某用戶經濟資料（不存在就初始化為 { balance: 0 }）
+ */
+function getUserEconomy(guildId: string, userId: string) {
+  const allEco = getGuildEconomy(guildId);
+  if (!allEco[userId]) {
+    allEco[userId] = { balance: 0 };
+    setGuildEconomy(guildId, allEco);
+  }
+  return allEco[userId];
+}
+
+/**
+ * 設定本群組經濟資料
+ */
+function setGuildEconomy(guildId: string, guildEco: Record<string, { balance: number }>) {
+  const filePath = getEconomyFileName(guildId);
+  fs.writeFileSync(filePath, JSON.stringify(guildEco, null, 2));
 }
 
 export const data = new SlashCommandBuilder()
@@ -29,12 +50,11 @@ export const data = new SlashCommandBuilder()
   .setDescription('查詢你目前的金錢餘額');
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  // === v2修改區塊開始 ===
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
   if (!guildId) {
-    return interaction.reply({ content: '只能在伺服器內使用本指令。', ephemeral: true });
+    return interaction.reply({ content: '只能在伺服器內使用本指令。', flags: MessageFlags.Ephemeral });
   }
 
   const eco = getUserEconomy(guildId, userId);
@@ -44,6 +64,5 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     .setDescription(`<@${userId}> 目前在本伺服器擁有 **${eco.balance}** 金幣`)
     .setColor(0xFFD700);
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
-  // === v2修改區塊結束 ===
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
