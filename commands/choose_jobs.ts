@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, ComponentType } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, ComponentType, MessageFlags } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -81,7 +81,12 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
-  if (!guildId) return interaction.reply({ content: '只能在伺服器中執行本指令。', ephemeral: true });
+  if (!guildId) {
+    return interaction.reply({
+      content: '只能在伺服器中執行本指令。',
+      flags: MessageFlags.Ephemeral
+    });
+  }
 
   // 動態產生職業清單，賭徒不可選，IT程序員限制最多 5 人
   const options = Object.entries(jobsData)
@@ -113,7 +118,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const msg = await interaction.reply({
     content: '請選擇你要的職業：',
     components: [row],
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 
   // 等待用戶選擇
@@ -126,7 +131,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const job = selectInteraction.values[0];
     if (job === 'IT程序員' && countJobUsers(guildId, job) >= 5) {
-      return selectInteraction.reply({ content: '此職業已達上限，請選擇其他職業。', ephemeral: true });
+      return selectInteraction.reply({
+        content: '此職業已達上限，請選擇其他職業。',
+        flags: MessageFlags.Ephemeral
+      });
     }
 
     // 設定職業（同時記錄到 user-jobs.json）
@@ -140,6 +148,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       components: []
     });
   } catch (err) {
-    await interaction.editReply({ content: '你沒有在時間內選擇職業，請重新執行指令。', components: [] });
+    // 修正：用 msg.edit 而不是 interaction.editReply
+    await msg.edit({ content: '你沒有在時間內選擇職業，請重新執行指令。', components: [] });
   }
 }
