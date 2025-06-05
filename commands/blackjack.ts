@@ -14,14 +14,13 @@ import fs from 'fs';
 // 資料檔案路徑
 const CONFIG_DIR = path.resolve('config');
 const ECONOMY_DIR = path.resolve('economys');
-const BALANCE_PATH = path.join(ECONOMY_DIR, 'balance.json');
 const BLACKJACK_PATH = path.join(CONFIG_DIR, 'blackjack_data.json');
 const INVALID_BET_PATH = path.join(CONFIG_DIR, 'invalid_bet_count.json');
 const USER_JOBS_PATH = path.join(CONFIG_DIR, 'user-jobs.json');
 
 // 型別定義
 interface BalanceData {
-  [guildId: string]: { [userId: string]: number };
+  [userId: string]: number;
 }
 interface InvalidBetData {
   [guildId: string]: { [userId: string]: number };
@@ -90,7 +89,7 @@ function calculateHand(cards: (number | string)[]): number {
 
 export const data = new SlashCommandBuilder()
   .setName('blackjack')
-  .setDescription('與幽幽子共舞一場21點遊戲～')
+  .setDescription('幽幽子與你共舞一場21點遊戲～')
   .addNumberOption(opt => opt.setName('bet').setDescription('下注金額').setRequired(true));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -108,6 +107,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const bet = roundToTwoDecimals(interaction.options.getNumber('bet', true));
   const userId = interaction.user.id;
   const guildId = interaction.guildId;
+  const BALANCE_PATH = path.join(ECONOMY_DIR, `${guildId}.json`);
 
   // 載入資料
   const [balance, invalidBet, blackjackData, userJobs] = await Promise.all([
@@ -123,7 +123,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     invalidBet[guildId][userId] = (invalidBet[guildId][userId] ?? 0) + 1;
     await saveJson(INVALID_BET_PATH, invalidBet);
     if (invalidBet[guildId][userId] >= 2) {
-      balance[guildId]?.[userId] && delete balance[guildId][userId];
+      if (balance[userId]) delete balance[userId];
       await saveJson(BALANCE_PATH, balance);
       delete invalidBet[guildId][userId];
       await saveJson(INVALID_BET_PATH, invalidBet);
@@ -147,7 +147,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   // 餘額檢查
-  const userBalance = roundToTwoDecimals(balance[guildId]?.[userId] ?? 0);
+  const userBalance = roundToTwoDecimals(balance[userId] ?? 0);
   if (userBalance < bet) {
     await interaction.reply({
       embeds: [new EmbedBuilder()
@@ -166,8 +166,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const deck = createDeck().sort(() => Math.random() - 0.5);
   const playerCards = [deck.pop()!, deck.pop()!];
   const dealerCards = [deck.pop()!, deck.pop()!];
-  balance[guildId] ??= {};
-  balance[guildId][userId] = roundToTwoDecimals(userBalance - bet);
+  balance[userId] = roundToTwoDecimals(userBalance - bet);
   await saveJson(BALANCE_PATH, balance);
 
   blackjackData[guildId] ??= {};
@@ -188,7 +187,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await saveJson(BLACKJACK_PATH, blackjackData);
     const multiplier = isGambler ? 5 : 2.5;
     const reward = roundToTwoDecimals(bet * multiplier);
-    balance[guildId][userId] += reward;
+    balance[userId] = roundToTwoDecimals((balance[userId] ?? 0) + reward);
     await saveJson(BALANCE_PATH, balance);
     await interaction.reply({
       embeds: [new EmbedBuilder()
@@ -209,7 +208,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setColor('#FFB6C1')
     .setFooter({ text: '選擇你的命運吧～' });
 
-  // 按鈕標籤翻譯為中文，保留 customId 為英文以符合 Discord 慣例
   const hitBtn = new ButtonBuilder().setCustomId('hit').setLabel('抽牌').setStyle(ButtonStyle.Primary);
   const standBtn = new ButtonBuilder().setCustomId('stand').setLabel('停牌').setStyle(ButtonStyle.Danger);
   const doubleBtn = new ButtonBuilder().setCustomId('double').setLabel('雙倍下注').setStyle(ButtonStyle.Success);
@@ -244,6 +242,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
+    if (!bj.deck.length) {
+      await btnInt.editReply({
+        embeds: [new EmbedBuilder()
+          .setTitle('🌸 牌組已耗盡 🌸')
+          .setDescription('牌組已用完，遊戲結束。請重新開始一場新遊戲～')
+          .setColor('Red')],
+        components: [],
+      });
+      bj.gameStatus = 'ended';
+      await saveJson(BLACKJACK_PATH, data);
+      return;
+    }
+
     if (btnInt.customId === 'hit') {
       bj.playerCards.push(bj.deck.pop()!);
       const total = calculateHand(bj.playerCards);
@@ -263,7 +274,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         bj.gameStatus = 'ended';
         const multiplier = bj.isGambler ? 5 : 2.5;
         const reward = roundToTwoDecimals(bj.bet * multiplier);
-        bal[guildId][userId] += reward;
+        bal[userId] = roundToTwoDecimals((bal[userId] ?? 0) + reward);
         await saveJson(BALANCE_PATH, bal);
         await saveJson(BLACKJACK_PATH, data);
         await btnInt.editReply({
@@ -300,39 +311,54 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           });
           return;
         }
-        if (bal[guildId][userId] < bet) {
+        if (bal[userId] < bet) {
           await btnInt.editReply({
             embeds: [new EmbedBuilder()
               .setTitle('🌸 嘻嘻，靈魂不夠喲～ 🌸')
-              .setDescription(`你的幽靈幣只有 ${bal[guildId][userId].toFixed(2)}，不足以雙倍下注哦～`)
+              .setDescription(`你的幽靈幣只有 ${bal[userId]?.toFixed(2) ?? '0.00'}，不足以雙倍下注哦～`)
               .setColor('Red')],
             components: [row],
           });
           return;
         }
-        bal[guildId][userId] = roundToTwoDecimals(bal[guildId][userId] - bet);
+        bal[userId] = roundToTwoDecimals((bal[userId] ?? 0) - bet);
         bj.bet = roundToTwoDecimals(bet * 2);
         bj.doubleDownUsed = true;
-        bj.playerCards.push(bj.deck.pop()!);
+        if (bj.deck.length) {
+          bj.playerCards.push(bj.deck.pop()!);
+        } else {
+          await btnInt.editReply({
+            embeds: [new EmbedBuilder()
+              .setTitle('🌸 牌組已耗盡 🌸')
+              .setDescription('牌組已用完，無法雙倍下注。遊戲結束～')
+              .setColor('Red')],
+            components: [],
+          });
+          bj.gameStatus = 'ended';
+          await saveJson(BLACKJACK_PATH, data);
+          return;
+        }
       }
       bj.gameStatus = 'ended';
-      // 莊家輪
-      while (calculateHand(bj.dealerCards) < 17) bj.dealerCards.push(bj.deck.pop()!);
+      while (calculateHand(bj.dealerCards) < 17 && bj.deck.length) {
+        bj.dealerCards.push(bj.deck.pop()!);
+      }
       const playerTotal = calculateHand(bj.playerCards);
       const dealerTotal = calculateHand(bj.dealerCards);
       let resultEmbed = new EmbedBuilder();
+ наша
       let reward = 0;
       const winMultiplier = bj.isGambler ? 4 : 2;
       if (dealerTotal > 21 || playerTotal > dealerTotal) {
         reward = roundToTwoDecimals(bj.bet * winMultiplier);
-        bal[guildId][userId] += reward;
+        bal[userId] = roundToTwoDecimals((bal[userId] ?? 0) + reward);
         resultEmbed
           .setTitle('🌸 靈魂的勝利！🌸')
           .setDescription(`你的手牌：${JSON.stringify(bj.playerCards)}\n幽幽子的手牌：${JSON.stringify(bj.dealerCards)}\n你贏得了 ${reward.toFixed(2)} 幽靈幣～`)
           .setColor('Gold');
       } else if (playerTotal === dealerTotal) {
         reward = roundToTwoDecimals(bj.bet);
-        bal[guildId][userId] += reward;
+        bal[userId] = roundToTwoDecimals((bal[userId] ?? 0) + reward);
         resultEmbed
           .setTitle('🌸 平手，靈魂的平衡～ 🌸')
           .setDescription(`你的手牌：${JSON.stringify(bj.playerCards)}\n幽幽子的手牌：${JSON.stringify(bj.dealerCards)}\n退還賭注：${reward.toFixed(2)} 幽靈幣`)
@@ -354,7 +380,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     if (data[guildId]?.[userId]?.gameStatus === 'ongoing') {
       const bal = await loadJson<BalanceData>(BALANCE_PATH);
       const bet = data[guildId][userId].bet;
-      bal[guildId][userId] = roundToTwoDecimals(bal[guildId][userId] + bet);
+      bal[userId] = roundToTwoDecimals((bal[userId] ?? 0) + bet);
       data[guildId][userId].gameStatus = 'ended';
       await saveJson(BALANCE_PATH, bal);
       await saveJson(BLACKJACK_PATH, data);
