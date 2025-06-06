@@ -21,7 +21,7 @@
 | 指令             | 說明               | Command        | Description                              |
 | -------------- | ---------------- | -------------- | ---------------------------------------- |
 | `/balance`     | 查看你的幻影幣餘額        | `/balance`     | Check your Ghost Coin balance            |
-| `/blackjack`   | 開始一場 21 點遊戲（未完成） | `/blackjack`   | Start a blackjack game (incomplete)      |
+| `/blackjack`   | 開始一場 21 點遊戲 | `/blackjack`   | Start a blackjack game   |
 | `/choose_jobs` | 選擇職業（部分職業有條件）    | `/choose_jobs` | Choose a job (some jobs have conditions) |
 | `/leaderboard` | 查看評稅與富豪排行榜       | `/leaderboard` | Show taxed users and richest leaderboard |
 | `/pay`         | 向其他用戶轉幣          | `/pay`         | Transfer coins to a user                 |
