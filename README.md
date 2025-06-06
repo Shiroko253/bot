@@ -4,40 +4,46 @@
 print(f"Hello, user! Please run `npm install typescript ts-node @types/node --save-dev` to install the required packages. Get ready to build Yuyuko bot 2nd generation!")
 ```
 
-## 📦 Required Packages & Setup Instructions
+---
 
-### 💻 Programming Languages
-- Main entry: **JavaScript (`index.js`)**
-- Commands & Events modules: **TypeScript or JavaScript** (folder: `commands/` and `events/`)
+## 📆 Project Setup / 項目設置
+
+### 💻 Programming Languages / 程式語言
+
+* 主要進入點: **JavaScript (`index.js`)**
+* 指令與事件模組: **TypeScript 或 JavaScript** (`commands/` 和 `events/` 資料夾)
 
 ---
 
-### 📚 Installation Steps
+## 📂 Required Packages & Installation / 必須套件與安裝步驟
 
-#### 1. Initialize Project
+### ✅ 1. Initialize Project / 初始化項目
 
 ```bash
 npm init -y
 ```
 
-#### 2. Install Dependencies
+### ✅ 2. Install Dependencies / 安裝套件
 
-**Development dependencies:**
+**開發套件 Development dependencies:**
+
 ```bash
 npm install typescript ts-node @types/node --save-dev
 ```
 
-**Runtime dependencies:**
+**執行時套件 Runtime dependencies:**
+
 ```bash
 npm install discord.js dotenv
 ```
 
-#### 3. Create TypeScript Configuration
+### ✅ 3. Create TypeScript Configuration / 創建 tsconfig
 
 ```bash
 npx tsc --init
 ```
-**Recommended `tsconfig.json` (only for `commands/` and `events/`, output to `build/`):**
+
+**建議的 `tsconfig.json` 設定 (限定編譯 `commands/` 和 `events/`):**
 
 ```json
 {
@@ -56,53 +62,57 @@ npx tsc --init
 
 ---
 
-## 📁 Project Structure (Sample)
+## 📁 Project Structure 項目相關目錄 (範例)
 
 ```
 /project-root
-├── index.js        # Main entry (JavaScript, executed directly)
-├── commands/       # Command modules (TypeScript/JavaScript)
-├── events/         # Event modules (TypeScript/JavaScript)
-├── build/          # Compiled JS output from TypeScript (auto-generated)
-├── tsconfig.json   # TypeScript config
-└── .env            # Environment variables
+├── index.js        # 主進入點 (JS)
+├── commands/       # 指令模組 (TS/JS)
+├── events/         # 事件模組 (TS/JS)
+├── build/          # TS 編譯成的 JS 輸出目錄
+├── tsconfig.json   # TypeScript 設定
+└── .env            # 環境變數
 ```
 
-- **index.js**: The main entry file, which loads JS modules from `build/commands/` and `build/events/`.
-- **commands/**, **events/**: Write your features in TS or JS, but TS is recommended. Compile TS to `build/`.
-- **build/**: Stores all compiled JS files. Do not edit directly.
+* **index.js**: 主進入文件，加載 `build/commands/` 與 `build/events/` 的 JS 檔案
+* **commands/** 與 **events/**: 建議使用 TypeScript 編写功能
+* **build/**: 儲存編譯後 JS 檔案，勿直接編讏
 
 ---
 
-## 🚀 Development & Start-up Workflow
+## 🚀 Development Workflow / 開發與啟動流程
 
-1. **Development:**  
-   Write your modules in `commands/` and `events/` using TypeScript.
+1. ✏️ **開發 Development**
+   在 `commands/` 與 `events/` 使用 TypeScript 編写模組
 
-2. **Compile TypeScript:**
+2. ✈️ **編譯 TypeScript**
+
    ```bash
    npx tsc
    ```
-   - This compiles TS files into JS under `build/commands/` and `build/events/`.
 
-3. **Start the bot:**
+   將 TS 編譯成 JS ，用於 `build/`
+
+3. 🚀 **啟動機器人 Start the bot**
+
    ```bash
    node index.js
    ```
-   - Make sure `index.js` only loads JS files from `build/commands/` and `build/events/`, not the original TS files!
+
+   * `index.js` 只加載 `build/` 中的 JS 檔案，不可加載 TS 原始檔
 
 ---
 
-## 🔒 Notes
+## 🔒 Notes / 註意事項
 
-- **index.js** can only load JS files. Do NOT require/import TS source files directly.
-- Place secrets (like your Discord Token) in `.env`.
-- `commands/` and `events/` are only for source code; run the bot using the compiled JS in `build/`.
-- Do not place command or event modules in the root directory—keep them in their designated folders.
+* `index.js` 只能加載 JS 檔案，不能直接引入 TS 檔
+* 秘密資訊 (e.g. Discord Token) 請放在 `.env`
+* `commands/` 與 `events/` 僅為原始碼目錄，啟動時請使用 `build/`
+* 請勿將模組直接放在根目錄
 
 ---
 
-## 📄 License
+## 📄 License / 授權條款
 
-This project is licensed under the **GNU General Public License v3.0**.  
-See [LICENSE](./LICENSE) for details.
+本項目授權下許於 **GNU General Public License v3.0**
+請參閱 [LICENSE](./LICENSE) 獲取詳細資訊
