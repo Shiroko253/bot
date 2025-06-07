@@ -2,7 +2,6 @@ import { REST, Routes, RESTPostAPIApplicationCommandsJSONBody } from 'discord.js
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-import { spawn } from 'child_process';
 
 // 載入環境變數
 dotenv.config();
@@ -42,19 +41,6 @@ if (!clientId) {
 // 初始化 REST 客戶端
 const rest = new REST({ version: '10' }).setToken(token);
 
-// ✅ 啟動 bot 的函式
-const runBot = () => {
-  console.log('🚀 正在啟動 Discord Bot...');
-  const child = spawn('node', ['index.js'], {
-    stdio: 'inherit',
-    shell: true,
-  });
-
-  child.on('exit', (code) => {
-    console.log(`👋 Bot 已退出，代碼: ${code}`);
-  });
-};
-
 // 部署斜線指令
 (async () => {
   try {
@@ -73,9 +59,6 @@ const runBot = () => {
 📊 已部署 ${data.length} 個命令
 ====================================
     `);
-
-    // ✅ 部署完畢後啟動 bot
-    runBot();
   } catch (error) {
     console.error(`
 ====================================
