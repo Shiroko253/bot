@@ -4,6 +4,9 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
+// === 1. 載入定時經濟精度修正 ===
+const { scheduleFixAllPrecisions } = require('./build/economys/fixAllPrecisions');
+
 // 初始化 Discord 客戶端
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
@@ -48,6 +51,9 @@ for (const file of eventFiles) {
     `);
   }
 }
+
+// === 2. 啟動定時精度修正 ===
+scheduleFixAllPrecisions();
 
 // 啟動 Bot
 client.login(token).then(() => {
